@@ -7,6 +7,9 @@
     CH3 - Weopon
 */
 
+//#include <Servo.h>
+//Servo lifter;  // create servo object to control a servo
+
 #define   lpwm    9     // pulse width modulation for left motor is pin 3
 #define   lpin1   7    // left control pin one is pin 4
 #define   lpin2   8     // left control pin two is pin 5
@@ -25,6 +28,22 @@
 #define   in_ch1  A0    // input channel one is on Steering
 #define   in_ch2  A1    // input channel two is on Throttle
 #define   in_ch3  A2    // input channel three is on "other"
+#define   maxWait 25000 // longest time in uS to wait for a radio pulse
+
+// states for the flipper servo!
+#define   steadyOpening 0 // not moving now, but will open when next delta of button
+#define   opening       1 // steadily opening up, but will steadyClosing on next delta of button 
+#define   steadyClosing 2 // not moving now, but will close when next delta of button
+#define   closing       3 // steadily chomping down, will be steadyOpening on next delta of button
+
+#define   allDown       1079 // uS pulse width that commands flipper all the way down
+#define   allUp         2380 // pulse width that commands flipper all the way up
+
+int currentPosition = allDown;
+bool priorBtnState = false;
+bool currentBtnState = false;
+int currentState = 0;
+
 
 int ch1; // Steering - Joystick x-axis
 int ch2; // Thottle - Joystick y-axis
@@ -35,6 +54,7 @@ int rightMotorSpeed = 0;
 int leftMotorSpeed = 0;
 byte  oldDirection = 0; //for troubleshooting stuttering left motor problem
 byte  newDirection = 0;
+
 
 void motorFunction(byte function, byte motor) {
   switch (motor) {
@@ -99,6 +119,7 @@ void setup() {
 
   pinMode(in_ch1, INPUT);       // channel one of RC receiver, x-axis steering
   pinMode(in_ch2, INPUT);       // channel two of RC receiver, y-axis throttle
+  pinMode(in_ch3, INPUT);       // channel three of RC receiver, "other"
 
   digitalWrite(lpin1, LOW);
   digitalWrite(lpin2, LOW);
@@ -106,17 +127,65 @@ void setup() {
   digitalWrite(rpin2, LOW);
   digitalWrite(standby, HIGH);  // turn on the things
 
+  currentBtnState = pulseIn(in_ch3, HIGH, maxWait) > 1750;
+  priorBtnState = currentBtnState;
+
+//  lifter.attach(11);  // attaches the servo on pin 11 to the servo object
+/**
+ * Attaching lifter to pin 10 or 11 breaks the left motor!
+ * Might have to do this with direct writing to the pin with uS delay :\
+ */
+//  lifter.write(allDown);
   Serial.begin(9600);
 }
 
-void loop() {
+void loop() { // about 31 Hz is the loop speed
   // pulsein returning value of 1000 to 2000 (1500 default neutral position)
   // All Numbers are with transmitter channels in Normal position
-  ch1 = pulseIn(in_ch1, HIGH, 25000); // Steering : 1000 Left, 2000 Right
-  ch2 = pulseIn(in_ch2, HIGH, 25000); // Throttle : 1000 Reverse, 2000 Forward
-  Serial.print(ch1);
-  Serial.print("\t");
-  Serial.print(ch2);
+  ch1 = pulseIn(in_ch1, HIGH, maxWait); // Steering : 1000 Left, 2000 Right
+  ch2 = pulseIn(in_ch2, HIGH, maxWait); // Throttle : 1000 Reverse, 2000 Forward
+  currentBtnState = pulseIn(in_ch3, HIGH, maxWait) > 1750;
+
+  if (currentBtnState != priorBtnState) { // sequential state engine
+    currentState++;
+  }
+  if (currentState > closing) { // if greater than last state code, go to initial mode.
+    currentState = steadyOpening;
+  }
+  priorBtnState = currentBtnState;
+
+  switch (currentState) {
+    case steadyOpening:
+//      Serial.print("steadyOpening ");
+//      Serial.println(currentPosition);
+      break;
+    case opening:
+      currentPosition += 100;
+//      Serial.print("opening ");
+//      Serial.println(currentPosition);
+      break;
+    case steadyClosing:
+//      Serial.print("steadyClosing ");
+//      Serial.println(currentPosition);
+      break;
+    case closing:
+      currentPosition -= 100;
+//      Serial.print("closing");
+//      Serial.println(currentPosition);
+      break;
+    default:
+//      Serial.print("Unknown State: ");
+//      Serial.println(currentState);
+      break;
+  }
+
+  if (currentPosition < allDown) {
+    currentState++;
+    currentPosition = allDown;
+  } else if (currentPosition > allUp) {
+    currentState++;
+    currentPosition = allUp;
+  }
 
   // handle the case in which the signals time
   if (ch1 < 800) {
@@ -167,6 +236,4 @@ void loop() {
 
   analogWrite(lpwm, abs(leftMotorSpeed));
   analogWrite(rpwm, abs(rightMotorSpeed));
-
-  Serial.println("");
 }
