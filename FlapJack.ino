@@ -4,11 +4,8 @@
 
     CH1 - Steering
     CH2 - Throttle
-    CH3 - Weopon
+    CH3 - Other
 */
-
-//#include <Servo.h>
-//Servo lifter;  // create servo object to control a servo
 
 #define   lpwm    9     // pulse width modulation for left motor is pin 3
 #define   lpin1   7    // left control pin one is pin 4
@@ -27,7 +24,7 @@
 
 #define   in_ch1  A0    // input channel one is on Steering
 #define   in_ch2  A1    // input channel two is on Throttle
-#define   in_ch3  A2    // input channel three is on "other"
+#define   in_ch3  A2    // input channel three is on Other
 #define   maxWait 25000 // longest time in uS to wait for a radio pulse
 
 // states for the flipper servo!
@@ -38,6 +35,8 @@
 
 #define   allDown       1079 // uS pulse width that commands flipper all the way down
 #define   allUp         2380 // pulse width that commands flipper all the way up
+
+#define   flipperPin    11 // where the flipper servo is connected
 
 int currentPosition = allDown;
 bool priorBtnState = false;
@@ -120,17 +119,19 @@ void setup() {
   pinMode(in_ch1, INPUT);       // channel one of RC receiver, x-axis steering
   pinMode(in_ch2, INPUT);       // channel two of RC receiver, y-axis throttle
   pinMode(in_ch3, INPUT);       // channel three of RC receiver, "other"
+  
+  pinMode(flipperPin, OUTPUT);  // servo driving pin
 
   digitalWrite(lpin1, LOW);
   digitalWrite(lpin2, LOW);
   digitalWrite(rpin1, LOW);
   digitalWrite(rpin2, LOW);
-  digitalWrite(standby, HIGH);  // turn on the things
+  digitalWrite(standby, HIGH);
+  digitalWrite(flipperPin, LOW);  // turn on the things
 
   currentBtnState = pulseIn(in_ch3, HIGH, maxWait) > 1750;
   priorBtnState = currentBtnState;
 
-//  lifter.attach(11);  // attaches the servo on pin 11 to the servo object
 /**
  * Attaching lifter to pin 10 or 11 breaks the left motor!
  * Might have to do this with direct writing to the pin with uS delay :\
@@ -139,7 +140,7 @@ void setup() {
   Serial.begin(9600);
 }
 
-void loop() { // about 31 Hz is the loop speed
+void loop() { // about 31 Hz is the loop speed TODO, maybe different order of pulseIn would give better speeds?
   // pulsein returning value of 1000 to 2000 (1500 default neutral position)
   // All Numbers are with transmitter channels in Normal position
   ch1 = pulseIn(in_ch1, HIGH, maxWait); // Steering : 1000 Left, 2000 Right
@@ -204,7 +205,7 @@ void loop() { // about 31 Hz is the loop speed
   if (abs(ch2) < 6) {
     ch2 = 0;
   }
-  spin = -0.7 * ch1;
+  spin = -1 * ch1;
   throttle = -1 * ch2;
 
   rightMotorSpeed = constrain( throttle + spin, -255, 255);
@@ -236,4 +237,10 @@ void loop() { // about 31 Hz is the loop speed
 
   analogWrite(lpwm, abs(leftMotorSpeed));
   analogWrite(rpwm, abs(rightMotorSpeed));
+
+
+  digitalWrite(flipperPin, HIGH);
+  delayMicroseconds(currentPosition);
+  digitalWrite(flipperPin, LOW);
+
 }
