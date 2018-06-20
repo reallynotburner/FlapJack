@@ -33,10 +33,12 @@
 #define   steadyClosing 2 // not moving now, but will close when next delta of button
 #define   closing       3 // steadily chomping down, will be steadyOpening on next delta of button
 
-#define   allDown       1079 // uS pulse width that commands flipper all the way down
+#define   allDown       1090 // uS pulse width that commands flipper all the way down
 #define   allUp         2380 // pulse width that commands flipper all the way up
 
 #define   flipperPin    11 // where the flipper servo is connected
+#define   rightBrow     10
+#define   leftBrow      12
 
 int currentPosition = allDown;
 bool priorBtnState = false;
@@ -119,24 +121,23 @@ void setup() {
   pinMode(in_ch1, INPUT);       // channel one of RC receiver, x-axis steering
   pinMode(in_ch2, INPUT);       // channel two of RC receiver, y-axis throttle
   pinMode(in_ch3, INPUT);       // channel three of RC receiver, "other"
-  
+
   pinMode(flipperPin, OUTPUT);  // servo driving pin
+  pinMode(rightBrow, OUTPUT);  // servo driving pin
+  pinMode(leftBrow, OUTPUT);  // servo driving pin
 
   digitalWrite(lpin1, LOW);
   digitalWrite(lpin2, LOW);
   digitalWrite(rpin1, LOW);
   digitalWrite(rpin2, LOW);
   digitalWrite(standby, HIGH);
-  digitalWrite(flipperPin, LOW);  // turn on the things
+  digitalWrite(flipperPin, LOW);
+  digitalWrite(rightBrow, LOW);
+  digitalWrite(leftBrow, LOW);  // turn on the things
 
   currentBtnState = pulseIn(in_ch3, HIGH, maxWait) > 1750;
   priorBtnState = currentBtnState;
 
-/**
- * Attaching lifter to pin 10 or 11 breaks the left motor!
- * Might have to do this with direct writing to the pin with uS delay :\
- */
-//  lifter.write(allDown);
   Serial.begin(9600);
 }
 
@@ -156,27 +157,15 @@ void loop() { // about 31 Hz is the loop speed TODO, maybe different order of pu
   priorBtnState = currentBtnState;
 
   switch (currentState) {
-    case steadyOpening:
-//      Serial.print("steadyOpening ");
-//      Serial.println(currentPosition);
-      break;
     case opening:
       currentPosition += 100;
-//      Serial.print("opening ");
-//      Serial.println(currentPosition);
-      break;
-    case steadyClosing:
-//      Serial.print("steadyClosing ");
-//      Serial.println(currentPosition);
       break;
     case closing:
       currentPosition -= 100;
-//      Serial.print("closing");
-//      Serial.println(currentPosition);
       break;
+    case steadyClosing:
+    case steadyOpening:
     default:
-//      Serial.print("Unknown State: ");
-//      Serial.println(currentState);
       break;
   }
 
@@ -243,4 +232,11 @@ void loop() { // about 31 Hz is the loop speed TODO, maybe different order of pu
   delayMicroseconds(currentPosition);
   digitalWrite(flipperPin, LOW);
 
+  digitalWrite(leftBrow, HIGH);
+  delayMicroseconds(1500 + rightMotorSpeed);
+  digitalWrite(leftBrow, LOW);
+
+  digitalWrite(rightBrow, HIGH);
+  delayMicroseconds(1500 - leftMotorSpeed);
+  digitalWrite(rightBrow, LOW);
 }
